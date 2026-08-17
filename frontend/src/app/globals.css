@@ -1,0 +1,415 @@
+/* ─── FONTS — must be first ─────────────────────────── */
+@import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;0,14..32,900&family=JetBrains+Mono:wght@400;500;600;700&family=Barlow:wght@400;500;600;700;800;900&display=swap");
+
+@import "tailwindcss";
+
+/* ─── DESIGN TOKENS ──────────────────────────────────── */
+:root {
+  /* Surfaces */
+  --bg-base: #f0f2f5;
+  --bg-surface: #ffffff;
+  --bg-elevated: #ffffff;
+  --bg-sunken: #e8eaed;
+  --bg-hover: #f5f7fa;
+
+  /* Borders */
+  --border: #e2e6ea;
+  --border-strong: #c8cdd4;
+
+  /* Text */
+  --text-primary: #0d1117;
+  --text-secondary: #4a5568;
+  --text-muted: #8a9ab0;
+  --text-faint: #b8c5d4;
+
+  /* Brand accents */
+  --accent-teal: #00c896;
+  --accent-teal-bg: rgba(0, 200, 150, 0.08);
+  --accent-teal-border: rgba(0, 200, 150, 0.25);
+
+  /* Semantic */
+  --up: #16a34a;
+  --up-bg: rgba(22, 163, 74, 0.08);
+  --up-border: rgba(22, 163, 74, 0.25);
+  --down: #dc2626;
+  --down-bg: rgba(220, 38, 38, 0.08);
+  --down-border: rgba(220, 38, 38, 0.25);
+  --warn: #d97706;
+  --warn-bg: rgba(217, 119, 6, 0.08);
+  --indigo: #6366f1;
+  --indigo-bg: rgba(99, 102, 241, 0.08);
+
+  /* Sidebar */
+  --sidebar-bg: #ffffff;
+  --sidebar-border: #e2e6ea;
+  --sidebar-active: rgba(0, 200, 150, 0.1);
+  --sidebar-hover: #f5f7fa;
+
+  /* Chart */
+  --chart-bg: #ffffff;
+  --chart-grid: #f0f2f5;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.1), 0 4px 8px rgba(0, 0, 0, 0.04);
+}
+
+/* ─── DARK MODE TOKENS ───────────────────────────────── */
+.dark {
+  --bg-base: #0b0f19;
+  --bg-surface: #111827;
+  --bg-elevated: #1a2332;
+  --bg-sunken: #0d1420;
+  --bg-hover: #1e2d40;
+
+  --border: #1e2d3d;
+  --border-strong: #2a3d52;
+
+  --text-primary: #e8edf5;
+  --text-secondary: #8a9ab0;
+  --text-muted: #4a5e74;
+  --text-faint: #2a3d52;
+
+  --accent-teal: #00d4aa;
+  --accent-teal-bg: rgba(0, 212, 170, 0.08);
+  --accent-teal-border: rgba(0, 212, 170, 0.2);
+
+  --up: #4ade80;
+  --up-bg: rgba(74, 222, 128, 0.08);
+  --up-border: rgba(74, 222, 128, 0.2);
+  --down: #f87171;
+  --down-bg: rgba(248, 113, 113, 0.08);
+  --down-border: rgba(248, 113, 113, 0.2);
+  --warn: #fbbf24;
+  --warn-bg: rgba(251, 191, 36, 0.08);
+  --indigo: #818cf8;
+  --indigo-bg: rgba(129, 140, 248, 0.08);
+
+  --sidebar-bg: #0d1420;
+  --sidebar-border: #1e2d3d;
+  --sidebar-active: rgba(0, 212, 170, 0.08);
+  --sidebar-hover: #1a2332;
+
+  --chart-bg: #111827;
+  --chart-grid: #1a2332;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+/* ─── BASE RESET ─────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family:
+    "Inter",
+    system-ui,
+    -apple-system,
+    sans-serif;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+/* ─── FONT UTILITIES ─────────────────────────────────── */
+
+/* Use for all prices, tickers, percentages, symbols */
+.font-data {
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-feature-settings: "tnum";
+}
+
+/* Use for brand name / large headings */
+.font-brand {
+  font-family: "Barlow", "Inter", sans-serif;
+}
+
+/* ─── SCROLLBAR ──────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* ─── SELECTION ──────────────────────────────────────── */
+::selection {
+  background: var(--accent-teal-bg);
+  color: var(--accent-teal);
+}
+
+/* ─── TICKER TAPE ANIMATION ──────────────────────────── */
+@keyframes ticker {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+.ticker-track {
+  display: flex;
+  gap: 2rem;
+  white-space: nowrap;
+  animation: ticker 30s linear infinite;
+}
+
+/* ─── LIVE PULSE ─────────────────────────────────────── */
+@keyframes live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.live-dot {
+  animation: live-pulse 2s ease-in-out infinite;
+}
+
+/* ─── SPINNER ────────────────────────────────────────── */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.spin {
+  animation: spin 0.75s linear infinite;
+}
+
+/* ─── SHARED COMPONENT CLASSES ───────────────────────── */
+
+/* Surface variants */
+.surface {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+}
+
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+.elevated {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+}
+
+/* Badge variants */
+.badge-up {
+  background: var(--up-bg);
+  color: var(--up);
+  border: 1px solid var(--up-border);
+}
+.badge-dn {
+  background: var(--down-bg);
+  color: var(--down);
+  border: 1px solid var(--down-border);
+}
+.badge-warn {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+.badge-ind {
+  background: var(--indigo-bg);
+  color: var(--indigo);
+}
+.badge-teal {
+  background: var(--accent-teal-bg);
+  color: var(--accent-teal);
+  border: 1px solid var(--accent-teal-border);
+}
+
+/* ─── INPUT ──────────────────────────────────────────── */
+.tt-input {
+  width: 100%;
+  background: var(--bg-base);
+  border: 1.5px solid var(--border);
+  color: var(--text-primary);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.tt-input:focus {
+  border-color: var(--accent-teal);
+}
+.tt-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* ─── BUTTONS ────────────────────────────────────────── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--accent-teal);
+  color: #ffffff;
+  font-family: "Inter", sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    opacity 0.15s ease,
+    transform 0.1s ease;
+  white-space: nowrap;
+}
+.btn-primary:hover {
+  opacity: 0.88;
+}
+.btn-primary:active {
+  transform: scale(0.98);
+}
+.btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1.5px solid var(--border);
+  color: var(--text-secondary);
+  font-family: "Inter", sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease;
+  white-space: nowrap;
+}
+.btn-ghost:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+/* ─── THEME TOGGLE BUTTON ────────────────────────────── */
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: var(--bg-hover);
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+.theme-toggle:hover {
+  color: var(--accent-teal);
+  border-color: var(--accent-teal-border);
+  background: var(--accent-teal-bg);
+}
+
+@import "tailwindcss";
+
+/* ── Reset ── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  /* prevent any element from causing horizontal scroll on mobile */
+  overflow-x: hidden;
+  background: var(--bg-base, #f8fafc);
+  color: var(--text-primary, #0f172a);
+  font-family: "Inter", Arial, Helvetica, sans-serif;
+  /* smooth scrolling on mobile */
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* ── Touch targets — all interactive elements at least 44px tall on mobile ── */
+@media (max-width: 768px) {
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    min-height: 44px;
+  }
+  /* inputs: comfortable tap target */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  select,
+  textarea {
+    font-size: 16px; /* prevents iOS auto-zoom on focus */
+  }
+}
+
+/* ── Images never overflow their container ── */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* ── Tables scroll horizontally on small screens ── */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Responsive utility: hide on mobile, show on md+ ── */
+@media (max-width: 767px) {
+  .hide-mobile {
+    display: none !important;
+  }
+}
+
+/* ── Responsive utility: show on mobile only ── */
+@media (min-width: 768px) {
+  .mobile-only {
+    display: none !important;
+  }
+}
