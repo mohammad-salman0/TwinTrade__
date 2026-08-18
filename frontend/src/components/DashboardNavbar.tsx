@@ -215,7 +215,15 @@ const HALAL_DOT: Record<string, string> = {
   "Review Needed": "var(--warn)",
 };
 
-export default function DashboardNavbar() {
+// export default function DashboardNavbar() {
+
+// lines added
+interface DashboardNavbarProps {
+  onMenuClick?: () => void;
+}
+
+export default function DashboardNavbar({ onMenuClick }: DashboardNavbarProps) {
+  // lines added
   const router = useRouter();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -367,7 +375,6 @@ export default function DashboardNavbar() {
           ))}
         </div>
       </div>
-
       {/* ── SEARCH ── */}
       <div style={{ position: "relative", width: 320 }}>
         <div
@@ -582,9 +589,19 @@ export default function DashboardNavbar() {
           </div>
         )}
       </div>
-
       {/* ── RIGHT ACTIONS ── */}
+      {/* // commeted line 596 and added lines 597--606 */}
+      {/* <div style={{ display: "flex", alignItems: "center", gap: 10 }}> */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        {onMenuClick && (
+          <button
+            className="mobile-menu-button"
+            onClick={onMenuClick}
+            aria-label="Open menu"
+          >
+            ☰
+          </button>
+        )}
         <ThemeToggle />
         <NotificationPanel />
 
