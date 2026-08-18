@@ -264,9 +264,12 @@ export default function DashboardPage() {
           </div>
 
           {/* CHART + AI */}
-          <div
+
+          {/* commented line 269-271 and added line 272 */}
+          {/* <div
             style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}
-          >
+          > */}
+          <div className="dashboard-chart-ai-grid">
             <div
               style={{
                 background: "var(--bg-surface)",
