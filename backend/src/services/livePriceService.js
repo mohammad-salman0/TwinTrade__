@@ -164,27 +164,410 @@
 
 //fixing live price issue
 // const { getLivePricesBatch } = require("./finnhubService");
+
+// attempt 2 of using twelve data api
+// const { getLivePricesBatch } = require("./finnhubService");
+
+/*
+=====================================
+ IN-MEMORY PRICE CACHE
+=====================================
+*/
+
+/*
+symbol -> {
+  price,
+  change,
+  fetchedAt
+}
+*/
+
+// const priceCache = new Map();
+
+// /*
+// =====================================
+//  CACHE SETTINGS
+// =====================================
+// */
+
+// /*
+// Keep successful prices for 10 minutes.
+// */
+
+// const CACHE_TTL_MS = 10 * 60 * 1000;
+
+// /*
+// Keep stale prices for up to 30 minutes
+// if Twelve Data temporarily fails.
+// */
+
+// const STALE_CACHE_MS = 30 * 60 * 1000;
+
+// /*
+// =====================================
+//  TWELVE DATA LIMIT
+// =====================================
+// */
+
+// /*
+// Basic plan:
+
+// 8 credits / minute
+
+// Therefore we only fetch 8 symbols
+// during each API window.
+// */
+
+// const BATCH_SIZE = 8;
+
+// /*
+// Wait slightly more than one minute
+// between Twelve Data batches.
+
+// 61 seconds gives the API window
+// time to reset.
+// */
+
+// const BATCH_INTERVAL_MS = 61 * 1000;
+
+// /*
+// =====================================
+//  REFRESH STATE
+// =====================================
+// */
+
+// /*
+// Prevents multiple frontend requests
+// from starting multiple refresh jobs.
+// */
+
+// let refreshRunning = false;
+
+// /*
+// =====================================
+//  SLEEP
+// =====================================
+// */
+
+// const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// /*
+// =====================================
+//  GET LIVE PRICES
+// =====================================
+// */
+
+// exports.getLivePrices = async (symbols = []) => {
+//   /*
+//     =====================================
+//     REMOVE DUPLICATES
+//     =====================================
+//     */
+
+//   const uniqueSymbols = [...new Set(symbols)];
+
+//   if (!uniqueSymbols.length) {
+//     return [];
+//   }
+
+//   const now = Date.now();
+
+//   const results = [];
+
+//   const needsRefresh = [];
+
+//   /*
+//     =====================================
+//     CHECK CACHE
+//     =====================================
+//     */
+
+//   for (const symbol of uniqueSymbols) {
+//     const cached = priceCache.get(symbol);
+
+//     /*
+//       -----------------------------------
+//       FRESH CACHE
+//       -----------------------------------
+//       */
+
+//     if (cached && now - cached.fetchedAt < CACHE_TTL_MS) {
+//       results.push({
+//         symbol,
+
+//         price: cached.price,
+
+//         change: cached.change,
+//       });
+
+//       continue;
+//     }
+
+//     /*
+//       -----------------------------------
+//       NEEDS REFRESH
+//       -----------------------------------
+//       */
+
+//     needsRefresh.push(symbol);
+//   }
+
+//   /*
+//     =====================================
+//     NO REFRESH NEEDED
+//     =====================================
+//     */
+
+//   if (!needsRefresh.length) {
+//     console.log(`Prices: ${results.length} from cache`);
+
+//     return results;
+//   }
+
+//   /*
+//     =====================================
+//     PREVENT MULTIPLE REFRESH JOBS
+//     =====================================
+//     */
+
+//   if (!refreshRunning) {
+//     /*
+//       Start refresh in background.
+
+//       We intentionally DO NOT wait for
+//       all 25 symbols.
+
+//       This prevents the frontend from
+//       waiting for several minutes.
+//       */
+
+//     refreshPrices(needsRefresh);
+//   }
+
+//   /*
+//     =====================================
+//     RETURN EXISTING CACHE IMMEDIATELY
+//     =====================================
+//     */
+
+//   for (const symbol of needsRefresh) {
+//     /*
+//       Don't duplicate something already
+//       returned above.
+//       */
+
+//     if (results.some((item) => item.symbol === symbol)) {
+//       continue;
+//     }
+
+//     const cached = priceCache.get(symbol);
+
+//     /*
+//       -----------------------------------
+//       STALE CACHE
+//       -----------------------------------
+//       */
+
+//     if (cached && now - cached.fetchedAt < STALE_CACHE_MS) {
+//       results.push({
+//         symbol,
+
+//         price: cached.price,
+
+//         change: cached.change,
+//       });
+//     } else {
+//       /*
+//         No price available yet.
+//         */
+
+//       results.push({
+//         symbol,
+
+//         price: null,
+
+//         change: null,
+//       });
+//     }
+//   }
+
+//   console.log(
+//     `Prices: ${
+//       results.filter((item) => item.price != null).length
+//     } available, ${
+//       results.filter((item) => item.price == null).length
+//     } waiting`,
+//   );
+
+//   return results;
+// };
+
+// /*
+// =====================================
+//  BACKGROUND REFRESH
+// =====================================
+// */
+
+// async function refreshPrices(symbols) {
+//   /*
+//   Prevent another request from
+//   starting another refresh job.
+//   */
+
+//   if (refreshRunning) {
+//     return;
+//   }
+
+//   refreshRunning = true;
+
+//   try {
+//     /*
+//     ===================================
+//     REMOVE SYMBOLS THAT WERE JUST
+//     REFRESHED BY ANOTHER REQUEST
+//     ===================================
+//     */
+
+//     const now = Date.now();
+
+//     const symbolsToFetch = symbols.filter((symbol) => {
+//       const cached = priceCache.get(symbol);
+
+//       return !cached || now - cached.fetchedAt >= CACHE_TTL_MS;
+//     });
+
+//     if (!symbolsToFetch.length) {
+//       return;
+//     }
+
+//     /*
+//     ===================================
+//     PROCESS 8 SYMBOLS AT A TIME
+//     ===================================
+//     */
+
+//     for (let i = 0; i < symbolsToFetch.length; i += BATCH_SIZE) {
+//       const batch = symbolsToFetch.slice(i, i + BATCH_SIZE);
+
+//       console.log(`Fetching Twelve Data batch: ${batch.length} symbols`);
+
+//       /*
+//       =================================
+//       FETCH BATCH
+//       =================================
+//       */
+
+//       const freshPrices = await getLivePricesBatch(batch);
+
+//       /*
+//       =================================
+//       UPDATE CACHE
+//       =================================
+//       */
+
+//       for (const item of freshPrices) {
+//         if (item.price == null) {
+//           continue;
+//         }
+
+//         priceCache.set(item.symbol, {
+//           price: item.price,
+
+//           change: item.change,
+
+//           fetchedAt: Date.now(),
+//         });
+//       }
+
+//       console.log(`Twelve Data batch complete: ${freshPrices.length} prices`);
+
+//       /*
+//       =================================
+//       WAIT BEFORE NEXT BATCH
+//       =================================
+
+//       Don't exceed the 8 credits/minute
+//       allowance.
+//       */
+
+//       if (i + BATCH_SIZE < symbolsToFetch.length) {
+//         console.log("Waiting for Twelve Data rate limit window...");
+
+//         await sleep(BATCH_INTERVAL_MS);
+//       }
+//     }
+//   } catch (error) {
+//     console.error("Background live-price refresh failed:", error.message);
+//   } finally {
+//     refreshRunning = false;
+//   }
+// }
+
+// TRYING TO MAKE THINGS BETTER
+
 const { getLivePricesBatch } = require("./finnhubService");
+
 /*
 =====================================
  PRICE CACHE
+=====================================
+
+symbol -> {
+  price,
+  change,
+  fetchedAt,
+  marketState
+}
 =====================================
 */
 
 const priceCache = new Map();
 
 /*
- Fresh data for 2 minutes.
+=====================================
+ CACHE CONFIGURATION
+=====================================
 */
-
-const CACHE_TTL_MS = 2 * 60 * 1000;
 
 /*
- Keep stale data for up to 15 minutes
- if Yahoo temporarily fails.
+Fresh prices are used for 60 seconds.
 */
 
-const STALE_CACHE_MS = 15 * 60 * 1000;
+const CACHE_TTL_MS = 60 * 1000;
+
+/*
+If Yahoo temporarily fails, we can
+continue displaying an older price for
+up to 10 minutes.
+*/
+
+const STALE_CACHE_TTL_MS = 10 * 60 * 1000;
+
+/*
+=====================================
+ REFRESH CONTROL
+=====================================
+*/
+
+/*
+Only one Yahoo refresh is allowed
+at a time.
+
+This is VERY important on Render
+because multiple browser requests
+could otherwise start multiple Yahoo
+requests simultaneously.
+*/
+
+let refreshPromise = null;
+
+/*
+=====================================
+ HELPER
+=====================================
+*/
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /*
 =====================================
@@ -193,26 +576,38 @@ const STALE_CACHE_MS = 15 * 60 * 1000;
 */
 
 exports.getLivePrices = async (symbols = []) => {
-  const uniqueSymbols = [...new Set(symbols)];
-
-  if (!uniqueSymbols.length) {
+  if (!symbols.length) {
     return [];
   }
+
+  /*
+    ---------------------------------
+    REMOVE DUPLICATES
+    ---------------------------------
+    */
+
+  const uniqueSymbols = [...new Set(symbols)];
 
   const now = Date.now();
 
   const results = [];
 
-  const toFetch = [];
+  const symbolsNeedingRefresh = [];
 
   /*
-  =====================================
-  CHECK CACHE
-  =====================================
-  */
+    =================================
+    CHECK CACHE
+    =================================
+    */
 
   for (const symbol of uniqueSymbols) {
     const cached = priceCache.get(symbol);
+
+    /*
+      ---------------------------------
+      FRESH CACHE
+      ---------------------------------
+      */
 
     if (cached && now - cached.fetchedAt < CACHE_TTL_MS) {
       results.push({
@@ -221,39 +616,180 @@ exports.getLivePrices = async (symbols = []) => {
         price: cached.price,
 
         change: cached.change,
+
+        marketState: cached.marketState,
       });
-    } else {
-      toFetch.push(symbol);
+
+      continue;
     }
+
+    /*
+      ---------------------------------
+      CACHE EXPIRED
+      ---------------------------------
+      */
+
+    symbolsNeedingRefresh.push(symbol);
   }
 
   /*
-  =====================================
-  EVERYTHING WAS CACHED
-  =====================================
-  */
+    =================================
+    EVERYTHING WAS CACHED
+    =================================
+    */
 
-  if (!toFetch.length) {
+  if (symbolsNeedingRefresh.length === 0) {
     console.log(`Prices: ${results.length} from cache`);
 
     return results;
   }
 
   /*
-  =====================================
-  FETCH ONE BATCH
-  =====================================
+    =================================
+    RETURN STALE CACHE WHILE
+    BACKGROUND REFRESH RUNS
+    =================================
+    */
+
+  for (const symbol of symbolsNeedingRefresh) {
+    const cached = priceCache.get(symbol);
+
+    if (cached && now - cached.fetchedAt < STALE_CACHE_TTL_MS) {
+      results.push({
+        symbol,
+
+        price: cached.price,
+
+        change: cached.change,
+
+        marketState: cached.marketState,
+      });
+    } else {
+      /*
+        No cached price yet.
+        */
+
+      results.push({
+        symbol,
+
+        price: null,
+
+        change: null,
+
+        marketState: null,
+      });
+    }
+  }
+
+  /*
+    =================================
+    START BACKGROUND REFRESH
+    =================================
+    */
+
+  startBackgroundRefresh(symbolsNeedingRefresh);
+
+  console.log(
+    `Prices: ${
+      results.filter((item) => item.price != null).length
+    } available, ${
+      results.filter((item) => item.price == null).length
+    } waiting`,
+  );
+
+  return results;
+};
+
+/*
+=====================================
+ BACKGROUND REFRESH
+=====================================
+*/
+
+function startBackgroundRefresh(symbols) {
+  /*
+  If a refresh is already running,
+  DO NOT start another one.
   */
 
-  try {
-    console.log(`Fetching ${toFetch.length} live prices from Yahoo`);
+  if (refreshPromise) {
+    return;
+  }
 
-    const freshPrices = await getLivePricesBatch(toFetch);
+  refreshPromise = refreshPrices(symbols)
+    .catch((error) => {
+      console.error("Yahoo background refresh failed:", error.message);
+    })
+    .finally(() => {
+      refreshPromise = null;
+    });
+}
+
+/*
+=====================================
+ ACTUAL YAHOO REFRESH
+=====================================
+*/
+
+async function refreshPrices(symbols) {
+  if (!symbols.length) {
+    return;
+  }
+
+  /*
+  ---------------------------------
+  RE-CHECK CACHE
+  ---------------------------------
+
+  Another request might have refreshed
+  some symbols while this job was
+  waiting.
+  */
+
+  const now = Date.now();
+
+  const symbolsToFetch = symbols.filter((symbol) => {
+    const cached = priceCache.get(symbol);
+
+    return !cached || now - cached.fetchedAt >= CACHE_TTL_MS;
+  });
+
+  if (!symbolsToFetch.length) {
+    return;
+  }
+
+  /*
+  =================================
+  LIMIT BATCH SIZE
+  =================================
+
+  Keep this at 25 because your Stocks
+  page currently displays 25 stocks.
+
+  Yahoo has already successfully
+  returned 25 quotes from your Render
+  backend.
+  */
+
+  const BATCH_SIZE = 25;
+
+  for (let i = 0; i < symbolsToFetch.length; i += BATCH_SIZE) {
+    const batch = symbolsToFetch.slice(i, i + BATCH_SIZE);
+
+    console.log(`Fetching ${batch.length} live prices from Yahoo`);
 
     /*
-    =====================================
-    SAVE SUCCESSFUL RESULTS
-    =====================================
+    =================================
+    YAHOO REQUEST
+    =================================
+    */
+
+    const freshPrices = await getLivePricesBatch(batch);
+
+    /*
+    =================================
+    SAVE SUCCESSFUL PRICES
+    =================================
     */
 
     for (const item of freshPrices) {
@@ -266,91 +802,39 @@ exports.getLivePrices = async (symbols = []) => {
 
         change: item.change,
 
+        marketState: item.marketState,
+
         fetchedAt: Date.now(),
       });
-
-      results.push(item);
     }
 
-    /*
-    =====================================
-    HANDLE SYMBOLS THAT WEREN'T RETURNED
-    =====================================
-    */
-
-    for (const symbol of toFetch) {
-      const alreadyReturned = results.some((item) => item.symbol === symbol);
-
-      if (alreadyReturned) {
-        continue;
-      }
-
-      const cached = priceCache.get(symbol);
-
-      /*
-      Use previous data if Yahoo
-      didn't return this symbol.
-      */
-
-      if (cached && Date.now() - cached.fetchedAt < STALE_CACHE_MS) {
-        console.log(`Using stale cache for ${symbol}`);
-
-        results.push({
-          symbol,
-
-          price: cached.price,
-
-          change: cached.change,
-        });
-      } else {
-        results.push({
-          symbol,
-
-          price: null,
-
-          change: null,
-        });
-      }
-    }
-  } catch (error) {
-    console.error("Live price batch failed:", error.message);
+    console.log(`Prices: ${freshPrices.length} available`);
 
     /*
-    =====================================
-    FALLBACK TO CACHE
-    =====================================
+    =================================
+    SMALL DELAY BETWEEN BATCHES
+    =================================
     */
 
-    for (const symbol of toFetch) {
-      const cached = priceCache.get(symbol);
-
-      if (cached && Date.now() - cached.fetchedAt < STALE_CACHE_MS) {
-        results.push({
-          symbol,
-
-          price: cached.price,
-
-          change: cached.change,
-        });
-      } else {
-        results.push({
-          symbol,
-
-          price: null,
-
-          change: null,
-        });
-      }
+    if (i + BATCH_SIZE < symbolsToFetch.length) {
+      await sleep(1500);
     }
   }
+}
 
-  console.log(
-    `Prices: ${
-      results.filter((item) => item.price != null).length
-    } available, ${
-      results.filter((item) => item.price == null).length
-    } unavailable`,
-  );
+/*
+=====================================
+ OPTIONAL CACHE CLEAR
+=====================================
 
-  return results;
+Useful if you ever want to manually
+clear prices without restarting
+Node.
+=====================================
+*/
+
+exports.clearPriceCache = () => {
+  priceCache.clear();
+
+  console.log("Yahoo price cache cleared");
 };

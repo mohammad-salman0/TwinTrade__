@@ -61,5 +61,62 @@ app.get("/api/test-yahoo", async (req, res) => {
     });
   }
 });
+// adding test route for twelve data api
+// app.get("/api/test-twelve", async (req, res) => {
+//   try {
+//     const response = await fetch(
+//       `https://api.twelvedata.com/quote?symbol=RELIANCE:NSE&apikey=${process.env.TWELVE_DATA_API_KEY}`,
+//     );
+
+//     const data = await response.json();
+
+//     console.log("Twelve Data test:", data);
+
+//     res.json(data);
+//   } catch (error) {
+//     console.error("Twelve Data test failed:", error.message);
+
+//     res.status(500).json({
+//       error: error.message,
+//     });
+//   }
+// });
+
+// ========================================
+// FINNHUB TEST ROUTE
+// ========================================
+
+// app.get("/api/test-finnhub", async (req, res) => {
+//   try {
+//     const token = process.env.FINNHUB_API_KEY;
+
+//     if (!token) {
+//       return res.status(500).json({
+//         error: "FINNHUB_API_KEY is missing",
+//       });
+//     }
+
+//     const url =
+//       `https://finnhub.io/api/v1/quote` +
+//       `?symbol=RELIANCE.NS` +
+//       `&token=${token}`;
+
+//     const response = await fetch(url);
+
+//     const data = await response.json();
+
+//     console.log("Finnhub status:", response.status);
+
+//     console.log("Finnhub response:", data);
+
+//     res.status(response.status).json(data);
+//   } catch (error) {
+//     console.error("Finnhub test failed:", error.message);
+
+//     res.status(500).json({
+//       error: error.message,
+//     });
+//   }
+// });
 
 module.exports = app;
