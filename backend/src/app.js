@@ -43,4 +43,23 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/wallet", walletRoutes);
 app.use("/api/ai-advisor", aiAdvisorRoutes);
 
+//adding test route for live price on render
+app.get("/api/test-yahoo", async (req, res) => {
+  try {
+    const YahooFinance = require("yahoo-finance2").default;
+
+    const yahooFinance = new YahooFinance();
+
+    const result = await yahooFinance.quote("RELIANCE.NS");
+
+    res.json(result);
+  } catch (error) {
+    console.error("Yahoo test failed:", error.message);
+
+    res.status(500).json({
+      error: error.message,
+    });
+  }
+});
+
 module.exports = app;
