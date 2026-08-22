@@ -443,3 +443,28 @@ img {
     grid-template-columns: 1fr;
   }
 }
+.market-disclaimer {
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+  overflow: hidden;
+  animation: disclaimerSlideIn 0.8s ease-out;
+}
+
+@keyframes disclaimerSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .market-disclaimer {
+    animation: none;
+  }
+}

@@ -81,7 +81,7 @@ type Stock = {
   companyName: string;
   price: number | null;
   halalStatus: string;
-  change: number;
+  change: number | null;
   complianceScore?: number;
 };
 type Props = { stocks: Stock[] };
@@ -199,10 +199,24 @@ export default function StockTable({ stocks }: Props) {
                     fontFamily: "'JetBrains Mono', monospace",
                   }}
                 >
-                  {s.price != null ? `₹${s.price.toFixed(2)}` : "—"}
+                  {/* {s.price != null ? `₹${s.price.toFixed(2)}` : "—"} */}
+                  {s.price != null ? (
+                    `₹${s.price.toFixed(2)}`
+                  ) : (
+                    <span
+                      style={{
+                        color: "var(--down)",
+                        fontSize: 11,
+                        fontWeight: 600,
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      Unavailable
+                    </span>
+                  )}
                 </span>
               </td>
-              <td style={{ padding: "12px 16px", whiteSpace: "nowrap" }}>
+              {/* <td style={{ padding: "12px 16px", whiteSpace: "nowrap" }}>
                 <span
                   style={{
                     display: "flex",
@@ -222,6 +236,39 @@ export default function StockTable({ stocks }: Props) {
                   {s.change >= 0 ? "+" : ""}
                   {s.change}%
                 </span>
+              </td> */}
+              <td style={{ padding: "12px 16px", whiteSpace: "nowrap" }}>
+                {s.change != null && !Number.isNaN(s.change) ? (
+                  <span
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 3,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: s.change >= 0 ? "var(--up)" : "var(--down)",
+                      fontFamily: "'JetBrains Mono', monospace",
+                    }}
+                  >
+                    {s.change >= 0 ? (
+                      <ArrowUpRight size={13} />
+                    ) : (
+                      <ArrowDownRight size={13} />
+                    )}
+                    {s.change >= 0 ? "+" : ""}
+                    {s.change.toFixed(2)}%
+                  </span>
+                ) : (
+                  <span
+                    style={{
+                      color: "var(--down)",
+                      fontSize: 11,
+                      fontWeight: 600,
+                    }}
+                  >
+                    Unavailable
+                  </span>
+                )}
               </td>
               <td style={{ padding: "12px 16px", whiteSpace: "nowrap" }}>
                 <span

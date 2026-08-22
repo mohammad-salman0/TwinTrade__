@@ -181,6 +181,19 @@ export default function PortfolioPage() {
             >
               Track your holdings, investments, and profits.
             </p>
+            <p
+              className="market-disclaimer"
+              style={{
+                marginTop: 8,
+                fontSize: 11,
+                fontWeight: 600,
+                color: "var(--down)",
+                lineHeight: 1.5,
+              }}
+            >
+              Live market data is subject to API availability and may be delayed
+              or unavailable at times.
+            </p>
           </div>
 
           {/* STATS GRID */}

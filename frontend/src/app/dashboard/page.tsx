@@ -145,6 +145,30 @@ export default function DashboardPage() {
               >
                 AI-powered halal investing intelligence dashboard.
               </p>
+              {/* <p
+                style={{
+                  color: "var(--text-muted)",
+                  marginTop: 6,
+                  fontSize: 11,
+                  lineHeight: 1.5,
+                }}
+              >
+                Live market data is subject to API availability and may be
+                delayed or unavailable at times.
+              </p> */}
+              <p
+                className="market-disclaimer"
+                style={{
+                  marginTop: 8,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: "var(--down)",
+                  lineHeight: 1.5,
+                }}
+              >
+                Live market data is subject to API availability and may be
+                delayed or unavailable at times.
+              </p>
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <button
@@ -307,6 +331,18 @@ export default function DashboardPage() {
                   >
                     Live portfolio analytics and performance tracking
                   </p>
+                  {/* <p
+                    style={{
+                      fontSize: 11,
+                      color: "var(--text-muted)",
+                      marginTop: 7,
+                      lineHeight: 1.5,
+                      maxWidth: 520,
+                    }}
+                  >
+                    Live market data is subject to API availability and may be
+                    delayed or unavailable at times.
+                  </p> */}
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span
