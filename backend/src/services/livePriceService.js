@@ -838,3 +838,216 @@ exports.clearPriceCache = () => {
 
   console.log("Yahoo price cache cleared");
 };
+
+//using reddis
+
+/*
+=====================================
+ LIVE PRICE SERVICE (Redis-backed)
+=====================================
+
+This file no longer talks to Yahoo Finance directly.
+
+A separate always-on process (src/worker.js, deployed as a
+Render Background Worker) is the ONLY thing that calls Yahoo.
+It refreshes prices for every symbol in the Stock collection
+every 60 seconds and writes them to Upstash Redis as one
+JSON blob.
+
+This service just reads that blob. That means:
+
+ - No crumb/429 errors here, ever — this file makes zero
+   outbound requests to Yahoo.
+ - Works identically whether called from Render or Vercel,
+   since Upstash Redis is reached over HTTPS.
+ - Response time is a single Redis read, not a network round
+   trip to Yahoo.
+
+finnhubService.js (the actual Yahoo fetch logic) is untouched
+and is only imported by worker.js now.
+=====================================
+*/
+
+// const redis = require("../config/redisClient");
+
+// /*
+// =====================================
+//  CACHE KEYS
+// =====================================
+// */
+
+// const PRICES_KEY = "live-prices";
+// const UPDATED_AT_KEY = "live-prices:updated-at";
+
+// /*
+// =====================================
+//  STALE THRESHOLD
+// =====================================
+
+// If the worker hasn't successfully refreshed in this long,
+// flag the data as stale so the frontend can show a warning
+// instead of presenting old prices as current.
+// */
+
+// const STALE_THRESHOLD_MS = 5 * 60 * 1000;
+
+// /*
+// =====================================
+//  GET LIVE PRICES
+// =====================================
+
+// Called two ways in this codebase:
+
+//   getLivePrices(["RELIANCE", "TCS"])  -> prices for just those symbols
+//   getLivePrices()                      -> prices for EVERY cached symbol
+//                                            (used by aiAdvisorController.js)
+// =====================================
+// */
+
+// exports.getLivePrices = async (symbols = []) => {
+//   try {
+//     const [raw, updatedAt] = await Promise.all([
+//       redis.get(PRICES_KEY),
+//       redis.get(UPDATED_AT_KEY),
+//     ]);
+
+//     /*
+//       ---------------------------------
+//       WORKER HASN'T WRITTEN ANYTHING YET
+//       ---------------------------------
+
+//       Happens right after first deploy, before the worker's
+//       first refresh cycle completes.
+//       */
+
+//     if (!raw) {
+//       console.log("Prices: cache empty, worker may still be starting up");
+
+//       if (!symbols.length) {
+//         return [];
+//       }
+
+//       return symbols.map((symbol) => ({
+//         symbol,
+//         price: null,
+//         change: null,
+//         marketState: null,
+//         stale: true,
+//       }));
+//     }
+
+//     /*
+//       ---------------------------------
+//       PARSE CACHED BLOB
+//       ---------------------------------
+
+//       @upstash/redis auto-deserializes JSON values, but we
+//       guard for the case where it comes back as a string.
+//       */
+
+//     const allPrices =
+//       typeof raw === "string" ? JSON.parse(raw) : raw;
+
+//     const isStale =
+//       !updatedAt || Date.now() - Number(updatedAt) > STALE_THRESHOLD_MS;
+
+//     /*
+//       ---------------------------------
+//       NO SYMBOLS PASSED — RETURN EVERYTHING
+//       ---------------------------------
+
+//       Matches the existing behavior relied on by
+//       aiAdvisorController.js.
+//       */
+
+//     if (!symbols.length) {
+//       console.log(`Prices: ${allPrices.length} returned (full cache)`);
+
+//       return allPrices.map((entry) => ({
+//         ...entry,
+//         stale: isStale,
+//       }));
+//     }
+
+//     /*
+//       ---------------------------------
+//       SPECIFIC SYMBOLS REQUESTED
+//       ---------------------------------
+//       */
+
+//     const priceMap = new Map(
+//       allPrices.map((entry) => [entry.symbol, entry]),
+//     );
+
+//     const results = symbols.map((symbol) => {
+//       const entry = priceMap.get(symbol);
+
+//       if (!entry) {
+//         return {
+//           symbol,
+//           price: null,
+//           change: null,
+//           marketState: null,
+//           stale: true,
+//         };
+//       }
+
+//       return {
+//         ...entry,
+//         stale: isStale,
+//       };
+//     });
+
+//     console.log(
+//       `Prices: ${results.filter((r) => r.price != null).length} available, ${
+//         results.filter((r) => r.price == null).length
+//       } missing${isStale ? " (cache stale)" : ""}`,
+//     );
+
+//     return results;
+//   } catch (error) {
+//     console.error("Failed to read live prices from Redis:", error.message);
+
+//     /*
+//       ---------------------------------
+//       REDIS ITSELF IS DOWN
+//       ---------------------------------
+
+//       Fail soft — same shape the frontend already expects
+//       when a price is unavailable.
+//       */
+
+//     if (!symbols.length) {
+//       return [];
+//     }
+
+//     return symbols.map((symbol) => ({
+//       symbol,
+//       price: null,
+//       change: null,
+//       marketState: null,
+//       stale: true,
+//     }));
+//   }
+// };
+
+// /*
+// =====================================
+//  OPTIONAL CACHE CLEAR
+// =====================================
+
+// Useful for manually forcing a clean slate without
+// restarting the worker.
+// =====================================
+// */
+
+// exports.clearPriceCache = async () => {
+//   try {
+//     await redis.del(PRICES_KEY);
+//     await redis.del(UPDATED_AT_KEY);
+
+//     console.log("Redis price cache cleared");
+//   } catch (error) {
+//     console.error("Failed to clear Redis price cache:", error.message);
+//   }
+// };
