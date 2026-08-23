@@ -505,342 +505,341 @@ symbol -> {
 
 // TRYING TO MAKE THINGS BETTER
 
-const { getLivePricesBatch } = require("./finnhubService");
-
-/*
-=====================================
- PRICE CACHE
-=====================================
-
-symbol -> {
-  price,
-  change,
-  fetchedAt,
-  marketState
-}
-=====================================
-*/
+// const { getLivePricesBatch } = require("./finnhubService");
+
+// /*
+// =====================================
+//  PRICE CACHE
+// =====================================
+
+// symbol -> {
+//   price,
+//   change,
+//   fetchedAt,
+//   marketState
+// }
+// =====================================
+// */
 
-const priceCache = new Map();
-
-/*
-=====================================
- CACHE CONFIGURATION
-=====================================
-*/
-
-/*
-Fresh prices are used for 60 seconds.
-*/
+// const priceCache = new Map();
+
+// /*
+// =====================================
+//  CACHE CONFIGURATION
+// =====================================
+// */
+
+// /*
+// Fresh prices are used for 60 seconds.
+// */
 
-const CACHE_TTL_MS = 60 * 1000;
-
-/*
-If Yahoo temporarily fails, we can
-continue displaying an older price for
-up to 10 minutes.
-*/
-
-const STALE_CACHE_TTL_MS = 10 * 60 * 1000;
-
-/*
-=====================================
- REFRESH CONTROL
-=====================================
-*/
-
-/*
-Only one Yahoo refresh is allowed
-at a time.
-
-This is VERY important on Render
-because multiple browser requests
-could otherwise start multiple Yahoo
-requests simultaneously.
-*/
-
-let refreshPromise = null;
+// const CACHE_TTL_MS = 60 * 1000;
+
+// /*
+// If Yahoo temporarily fails, we can
+// continue displaying an older price for
+// up to 10 minutes.
+// */
+
+// const STALE_CACHE_TTL_MS = 10 * 60 * 1000;
+
+// /*
+// =====================================
+//  REFRESH CONTROL
+// =====================================
+// */
+
+// /*
+// Only one Yahoo refresh is allowed
+// at a time.
+
+// This is VERY important on Render
+// because multiple browser requests
+// could otherwise start multiple Yahoo
+// requests simultaneously.
+// */
+
+// let refreshPromise = null;
 
-/*
-=====================================
- HELPER
-=====================================
-*/
-
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-/*
-=====================================
- GET LIVE PRICES
-=====================================
-*/
+// /*
+// =====================================
+//  HELPER
+// =====================================
+// */
+
+// const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// /*
+// =====================================
+//  GET LIVE PRICES
+// =====================================
+// */
 
-exports.getLivePrices = async (symbols = []) => {
-  if (!symbols.length) {
-    return [];
-  }
+// exports.getLivePrices = async (symbols = []) => {
+//   if (!symbols.length) {
+//     return [];
+//   }
 
-  /*
-    ---------------------------------
-    REMOVE DUPLICATES
-    ---------------------------------
-    */
+//   /*
+//     ---------------------------------
+//     REMOVE DUPLICATES
+//     ---------------------------------
+//     */
 
-  const uniqueSymbols = [...new Set(symbols)];
+//   const uniqueSymbols = [...new Set(symbols)];
 
-  const now = Date.now();
+//   const now = Date.now();
 
-  const results = [];
+//   const results = [];
 
-  const symbolsNeedingRefresh = [];
+//   const symbolsNeedingRefresh = [];
 
-  /*
-    =================================
-    CHECK CACHE
-    =================================
-    */
-
-  for (const symbol of uniqueSymbols) {
-    const cached = priceCache.get(symbol);
-
-    /*
-      ---------------------------------
-      FRESH CACHE
-      ---------------------------------
-      */
+//   /*
+//     =================================
+//     CHECK CACHE
+//     =================================
+//     */
+
+//   for (const symbol of uniqueSymbols) {
+//     const cached = priceCache.get(symbol);
+
+//     /*
+//       ---------------------------------
+//       FRESH CACHE
+//       ---------------------------------
+//       */
 
-    if (cached && now - cached.fetchedAt < CACHE_TTL_MS) {
-      results.push({
-        symbol,
+//     if (cached && now - cached.fetchedAt < CACHE_TTL_MS) {
+//       results.push({
+//         symbol,
 
-        price: cached.price,
-
-        change: cached.change,
+//         price: cached.price,
+
+//         change: cached.change,
 
-        marketState: cached.marketState,
-      });
-
-      continue;
-    }
-
-    /*
-      ---------------------------------
-      CACHE EXPIRED
-      ---------------------------------
-      */
-
-    symbolsNeedingRefresh.push(symbol);
-  }
-
-  /*
-    =================================
-    EVERYTHING WAS CACHED
-    =================================
-    */
-
-  if (symbolsNeedingRefresh.length === 0) {
-    console.log(`Prices: ${results.length} from cache`);
-
-    return results;
-  }
-
-  /*
-    =================================
-    RETURN STALE CACHE WHILE
-    BACKGROUND REFRESH RUNS
-    =================================
-    */
-
-  for (const symbol of symbolsNeedingRefresh) {
-    const cached = priceCache.get(symbol);
-
-    if (cached && now - cached.fetchedAt < STALE_CACHE_TTL_MS) {
-      results.push({
-        symbol,
-
-        price: cached.price,
-
-        change: cached.change,
-
-        marketState: cached.marketState,
-      });
-    } else {
-      /*
-        No cached price yet.
-        */
-
-      results.push({
-        symbol,
-
-        price: null,
-
-        change: null,
-
-        marketState: null,
-      });
-    }
-  }
-
-  /*
-    =================================
-    START BACKGROUND REFRESH
-    =================================
-    */
-
-  startBackgroundRefresh(symbolsNeedingRefresh);
-
-  console.log(
-    `Prices: ${
-      results.filter((item) => item.price != null).length
-    } available, ${
-      results.filter((item) => item.price == null).length
-    } waiting`,
-  );
-
-  return results;
-};
-
-/*
-=====================================
- BACKGROUND REFRESH
-=====================================
-*/
+//         marketState: cached.marketState,
+//       });
+
+//       continue;
+//     }
+
+//     /*
+//       ---------------------------------
+//       CACHE EXPIRED
+//       ---------------------------------
+//       */
+
+//     symbolsNeedingRefresh.push(symbol);
+//   }
+
+//   /*
+//     =================================
+//     EVERYTHING WAS CACHED
+//     =================================
+//     */
+
+//   if (symbolsNeedingRefresh.length === 0) {
+//     console.log(`Prices: ${results.length} from cache`);
+
+//     return results;
+//   }
+
+//   /*
+//     =================================
+//     RETURN STALE CACHE WHILE
+//     BACKGROUND REFRESH RUNS
+//     =================================
+//     */
+
+//   for (const symbol of symbolsNeedingRefresh) {
+//     const cached = priceCache.get(symbol);
+
+//     if (cached && now - cached.fetchedAt < STALE_CACHE_TTL_MS) {
+//       results.push({
+//         symbol,
+
+//         price: cached.price,
+
+//         change: cached.change,
+
+//         marketState: cached.marketState,
+//       });
+//     } else {
+//       /*
+//         No cached price yet.
+//         */
+
+//       results.push({
+//         symbol,
+
+//         price: null,
+
+//         change: null,
+
+//         marketState: null,
+//       });
+//     }
+//   }
+
+//   /*
+//     =================================
+//     START BACKGROUND REFRESH
+//     =================================
+//     */
+
+//   startBackgroundRefresh(symbolsNeedingRefresh);
+
+//   console.log(
+//     `Prices: ${
+//       results.filter((item) => item.price != null).length
+//     } available, ${
+//       results.filter((item) => item.price == null).length
+//     } waiting`,
+//   );
+
+//   return results;
+// };
+
+// /*
+// =====================================
+//  BACKGROUND REFRESH
+// =====================================
+// */
 
-function startBackgroundRefresh(symbols) {
-  /*
-  If a refresh is already running,
-  DO NOT start another one.
-  */
+// function startBackgroundRefresh(symbols) {
+//   /*
+//   If a refresh is already running,
+//   DO NOT start another one.
+//   */
 
-  if (refreshPromise) {
-    return;
-  }
-
-  refreshPromise = refreshPrices(symbols)
-    .catch((error) => {
-      console.error("Yahoo background refresh failed:", error.message);
-    })
-    .finally(() => {
-      refreshPromise = null;
-    });
-}
-
-/*
-=====================================
- ACTUAL YAHOO REFRESH
-=====================================
-*/
-
-async function refreshPrices(symbols) {
-  if (!symbols.length) {
-    return;
-  }
-
-  /*
-  ---------------------------------
-  RE-CHECK CACHE
-  ---------------------------------
-
-  Another request might have refreshed
-  some symbols while this job was
-  waiting.
-  */
-
-  const now = Date.now();
-
-  const symbolsToFetch = symbols.filter((symbol) => {
-    const cached = priceCache.get(symbol);
-
-    return !cached || now - cached.fetchedAt >= CACHE_TTL_MS;
-  });
-
-  if (!symbolsToFetch.length) {
-    return;
-  }
-
-  /*
-  =================================
-  LIMIT BATCH SIZE
-  =================================
-
-  Keep this at 25 because your Stocks
-  page currently displays 25 stocks.
-
-  Yahoo has already successfully
-  returned 25 quotes from your Render
-  backend.
-  */
-
-  const BATCH_SIZE = 25;
-
-  for (let i = 0; i < symbolsToFetch.length; i += BATCH_SIZE) {
-    const batch = symbolsToFetch.slice(i, i + BATCH_SIZE);
-
-    console.log(`Fetching ${batch.length} live prices from Yahoo`);
-
-    /*
-    =================================
-    YAHOO REQUEST
-    =================================
-    */
-
-    const freshPrices = await getLivePricesBatch(batch);
-
-    /*
-    =================================
-    SAVE SUCCESSFUL PRICES
-    =================================
-    */
-
-    for (const item of freshPrices) {
-      if (item.price == null) {
-        continue;
-      }
-
-      priceCache.set(item.symbol, {
-        price: item.price,
-
-        change: item.change,
-
-        marketState: item.marketState,
-
-        fetchedAt: Date.now(),
-      });
-    }
-
-    console.log(`Prices: ${freshPrices.length} available`);
-
-    /*
-    =================================
-    SMALL DELAY BETWEEN BATCHES
-    =================================
-    */
-
-    if (i + BATCH_SIZE < symbolsToFetch.length) {
-      await sleep(1500);
-    }
-  }
-}
-
-/*
-=====================================
- OPTIONAL CACHE CLEAR
-=====================================
-
-Useful if you ever want to manually
-clear prices without restarting
-Node.
-=====================================
-*/
-
-exports.clearPriceCache = () => {
-  priceCache.clear();
-
-  console.log("Yahoo price cache cleared");
-};
+//   if (refreshPromise) {
+//     return;
+//   }
+
+//   refreshPromise = refreshPrices(symbols)
+//     .catch((error) => {
+//       console.error("Yahoo background refresh failed:", error.message);
+//     })
+//     .finally(() => {
+//       refreshPromise = null;
+//     });
+// }
+
+// /*
+// =====================================
+//  ACTUAL YAHOO REFRESH
+// =====================================
+// */
+
+// async function refreshPrices(symbols) {
+//   if (!symbols.length) {
+//     return;
+//   }
+
+//   /*
+//   ---------------------------------
+//   RE-CHECK CACHE
+//   ---------------------------------
+
+//   Another request might have refreshed
+//   some symbols while this job was
+//   waiting.
+//   */
+
+//   const now = Date.now();
+
+//   const symbolsToFetch = symbols.filter((symbol) => {
+//     const cached = priceCache.get(symbol);
+
+//     return !cached || now - cached.fetchedAt >= CACHE_TTL_MS;
+//   });
+
+//   if (!symbolsToFetch.length) {
+//     return;
+//   }
+
+//   /*
+//   =================================
+//   LIMIT BATCH SIZE
+//   =================================
+
+//   Keep this at 25 because your Stocks
+//   page currently displays 25 stocks.
+
+//   Yahoo has already successfully
+//   returned 25 quotes from your Render
+//   backend.
+//   */
+
+//   const BATCH_SIZE = 25;
+
+//   for (let i = 0; i < symbolsToFetch.length; i += BATCH_SIZE) {
+//     const batch = symbolsToFetch.slice(i, i + BATCH_SIZE);
+
+//     console.log(`Fetching ${batch.length} live prices from Yahoo`);
+
+//     /*
+//     =================================
+//     YAHOO REQUEST
+//     =================================
+//     */
+
+//     const freshPrices = await getLivePricesBatch(batch);
+
+//     /*
+//     =================================
+//     SAVE SUCCESSFUL PRICES
+//     =================================
+//     */
+
+//     for (const item of freshPrices) {
+//       if (item.price == null) {
+//         continue;
+//       }
+
+//       priceCache.set(item.symbol, {
+//         price: item.price,
+
+//         change: item.change,
+
+//         marketState: item.marketState,
+
+//         fetchedAt: Date.now(),
+//       });
+//     }
+
+//     console.log(`Prices: ${freshPrices.length} available`);
+
+//     /*
+//     =================================
+//     SMALL DELAY BETWEEN BATCHES
+//     =================================
+//     */
+
+//     if (i + BATCH_SIZE < symbolsToFetch.length) {
+//       await sleep(1500);
+//     }
+//   }
+// }
+
+// /*
+// =====================================
+//  OPTIONAL CACHE CLEAR
+// =====================================
+
+// Useful if you ever want to manually
+// clear prices without restarting
+// Node.
+// =====================================
+// */
+
+// exports.clearPriceCache = () => {
+//   priceCache.clear();
+
+//   console.log("Yahoo price cache cleared");
+// };
 
 //using reddis
-
 /*
 =====================================
  LIVE PRICE SERVICE (Redis-backed)
@@ -868,186 +867,183 @@ and is only imported by worker.js now.
 =====================================
 */
 
-// const redis = require("../config/redisClient");
+const redis = require("../config/redisClient");
 
-// /*
-// =====================================
-//  CACHE KEYS
-// =====================================
-// */
+/*
+=====================================
+ CACHE KEYS
+=====================================
+*/
 
-// const PRICES_KEY = "live-prices";
-// const UPDATED_AT_KEY = "live-prices:updated-at";
+const PRICES_KEY = "live-prices";
+const UPDATED_AT_KEY = "live-prices:updated-at";
 
-// /*
-// =====================================
-//  STALE THRESHOLD
-// =====================================
+/*
+=====================================
+ STALE THRESHOLD
+=====================================
 
-// If the worker hasn't successfully refreshed in this long,
-// flag the data as stale so the frontend can show a warning
-// instead of presenting old prices as current.
-// */
+If the worker hasn't successfully refreshed in this long,
+flag the data as stale so the frontend can show a warning
+instead of presenting old prices as current.
+*/
 
-// const STALE_THRESHOLD_MS = 5 * 60 * 1000;
+const STALE_THRESHOLD_MS = 5 * 60 * 1000;
 
-// /*
-// =====================================
-//  GET LIVE PRICES
-// =====================================
+/*
+=====================================
+ GET LIVE PRICES
+=====================================
 
-// Called two ways in this codebase:
+Called two ways in this codebase:
 
-//   getLivePrices(["RELIANCE", "TCS"])  -> prices for just those symbols
-//   getLivePrices()                      -> prices for EVERY cached symbol
-//                                            (used by aiAdvisorController.js)
-// =====================================
-// */
+  getLivePrices(["RELIANCE", "TCS"])  -> prices for just those symbols
+  getLivePrices()                      -> prices for EVERY cached symbol
+                                           (used by aiAdvisorController.js)
+=====================================
+*/
 
-// exports.getLivePrices = async (symbols = []) => {
-//   try {
-//     const [raw, updatedAt] = await Promise.all([
-//       redis.get(PRICES_KEY),
-//       redis.get(UPDATED_AT_KEY),
-//     ]);
+exports.getLivePrices = async (symbols = []) => {
+  try {
+    const [raw, updatedAt] = await Promise.all([
+      redis.get(PRICES_KEY),
+      redis.get(UPDATED_AT_KEY),
+    ]);
 
-//     /*
-//       ---------------------------------
-//       WORKER HASN'T WRITTEN ANYTHING YET
-//       ---------------------------------
+    /*
+      ---------------------------------
+      WORKER HASN'T WRITTEN ANYTHING YET
+      ---------------------------------
 
-//       Happens right after first deploy, before the worker's
-//       first refresh cycle completes.
-//       */
+      Happens right after first deploy, before the worker's
+      first refresh cycle completes.
+      */
 
-//     if (!raw) {
-//       console.log("Prices: cache empty, worker may still be starting up");
+    if (!raw) {
+      console.log("Prices: cache empty, worker may still be starting up");
 
-//       if (!symbols.length) {
-//         return [];
-//       }
+      if (!symbols.length) {
+        return [];
+      }
 
-//       return symbols.map((symbol) => ({
-//         symbol,
-//         price: null,
-//         change: null,
-//         marketState: null,
-//         stale: true,
-//       }));
-//     }
+      return symbols.map((symbol) => ({
+        symbol,
+        price: null,
+        change: null,
+        marketState: null,
+        stale: true,
+      }));
+    }
 
-//     /*
-//       ---------------------------------
-//       PARSE CACHED BLOB
-//       ---------------------------------
+    /*
+      ---------------------------------
+      PARSE CACHED BLOB
+      ---------------------------------
 
-//       @upstash/redis auto-deserializes JSON values, but we
-//       guard for the case where it comes back as a string.
-//       */
+      @upstash/redis auto-deserializes JSON values, but we
+      guard for the case where it comes back as a string.
+      */
 
-//     const allPrices =
-//       typeof raw === "string" ? JSON.parse(raw) : raw;
+    const allPrices = typeof raw === "string" ? JSON.parse(raw) : raw;
 
-//     const isStale =
-//       !updatedAt || Date.now() - Number(updatedAt) > STALE_THRESHOLD_MS;
+    const isStale =
+      !updatedAt || Date.now() - Number(updatedAt) > STALE_THRESHOLD_MS;
 
-//     /*
-//       ---------------------------------
-//       NO SYMBOLS PASSED — RETURN EVERYTHING
-//       ---------------------------------
+    /*
+      ---------------------------------
+      NO SYMBOLS PASSED — RETURN EVERYTHING
+      ---------------------------------
 
-//       Matches the existing behavior relied on by
-//       aiAdvisorController.js.
-//       */
+      Matches the existing behavior relied on by
+      aiAdvisorController.js.
+      */
 
-//     if (!symbols.length) {
-//       console.log(`Prices: ${allPrices.length} returned (full cache)`);
+    if (!symbols.length) {
+      console.log(`Prices: ${allPrices.length} returned (full cache)`);
 
-//       return allPrices.map((entry) => ({
-//         ...entry,
-//         stale: isStale,
-//       }));
-//     }
+      return allPrices.map((entry) => ({
+        ...entry,
+        stale: isStale,
+      }));
+    }
 
-//     /*
-//       ---------------------------------
-//       SPECIFIC SYMBOLS REQUESTED
-//       ---------------------------------
-//       */
+    /*
+      ---------------------------------
+      SPECIFIC SYMBOLS REQUESTED
+      ---------------------------------
+      */
 
-//     const priceMap = new Map(
-//       allPrices.map((entry) => [entry.symbol, entry]),
-//     );
+    const priceMap = new Map(allPrices.map((entry) => [entry.symbol, entry]));
 
-//     const results = symbols.map((symbol) => {
-//       const entry = priceMap.get(symbol);
+    const results = symbols.map((symbol) => {
+      const entry = priceMap.get(symbol);
 
-//       if (!entry) {
-//         return {
-//           symbol,
-//           price: null,
-//           change: null,
-//           marketState: null,
-//           stale: true,
-//         };
-//       }
+      if (!entry) {
+        return {
+          symbol,
+          price: null,
+          change: null,
+          marketState: null,
+          stale: true,
+        };
+      }
 
-//       return {
-//         ...entry,
-//         stale: isStale,
-//       };
-//     });
+      return {
+        ...entry,
+        stale: isStale,
+      };
+    });
 
-//     console.log(
-//       `Prices: ${results.filter((r) => r.price != null).length} available, ${
-//         results.filter((r) => r.price == null).length
-//       } missing${isStale ? " (cache stale)" : ""}`,
-//     );
+    console.log(
+      `Prices: ${results.filter((r) => r.price != null).length} available, ${
+        results.filter((r) => r.price == null).length
+      } missing${isStale ? " (cache stale)" : ""}`,
+    );
 
-//     return results;
-//   } catch (error) {
-//     console.error("Failed to read live prices from Redis:", error.message);
+    return results;
+  } catch (error) {
+    console.error("Failed to read live prices from Redis:", error.message);
 
-//     /*
-//       ---------------------------------
-//       REDIS ITSELF IS DOWN
-//       ---------------------------------
+    /*
+      ---------------------------------
+      REDIS ITSELF IS DOWN
+      ---------------------------------
 
-//       Fail soft — same shape the frontend already expects
-//       when a price is unavailable.
-//       */
+      Fail soft — same shape the frontend already expects
+      when a price is unavailable.
+      */
 
-//     if (!symbols.length) {
-//       return [];
-//     }
+    if (!symbols.length) {
+      return [];
+    }
 
-//     return symbols.map((symbol) => ({
-//       symbol,
-//       price: null,
-//       change: null,
-//       marketState: null,
-//       stale: true,
-//     }));
-//   }
-// };
+    return symbols.map((symbol) => ({
+      symbol,
+      price: null,
+      change: null,
+      marketState: null,
+      stale: true,
+    }));
+  }
+};
 
-// /*
-// =====================================
-//  OPTIONAL CACHE CLEAR
-// =====================================
+/*
+=====================================
+ OPTIONAL CACHE CLEAR
+=====================================
 
-// Useful for manually forcing a clean slate without
-// restarting the worker.
-// =====================================
-// */
+Useful for manually forcing a clean slate without
+restarting the worker.
+=====================================
+*/
 
-// exports.clearPriceCache = async () => {
-//   try {
-//     await redis.del(PRICES_KEY);
-//     await redis.del(UPDATED_AT_KEY);
+exports.clearPriceCache = async () => {
+  try {
+    await redis.del(PRICES_KEY);
+    await redis.del(UPDATED_AT_KEY);
 
-//     console.log("Redis price cache cleared");
-//   } catch (error) {
-//     console.error("Failed to clear Redis price cache:", error.message);
-//   }
-// };
+    console.log("Redis price cache cleared");
+  } catch (error) {
+    console.error("Failed to clear Redis price cache:", error.message);
+  }
+};
