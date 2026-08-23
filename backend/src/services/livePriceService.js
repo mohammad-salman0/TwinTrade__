@@ -505,336 +505,212 @@ symbol -> {
 
 // TRYING TO MAKE THINGS BETTER
 
-const { getLivePricesBatch } = require("./finnhubService");
+// implementting reddis
 
 /*
 =====================================
- PRICE CACHE
+ LIVE PRICE SERVICE (Redis-backed)
 =====================================
 
-symbol -> {
-  price,
-  change,
-  fetchedAt,
-  marketState
-}
+This file no longer talks to Yahoo Finance directly.
+
+A separate always-on process (src/worker.js, deployed as a
+Render Background Worker) is the ONLY thing that calls Yahoo.
+It refreshes prices for every symbol in the Stock collection
+every 60 seconds and writes them to Upstash Redis as one
+JSON blob.
+
+This service just reads that blob. That means:
+
+ - No crumb/429 errors here, ever — this file makes zero
+   outbound requests to Yahoo.
+ - Works identically whether called from Render or Vercel,
+   since Upstash Redis is reached over HTTPS.
+ - Response time is a single Redis read, not a network round
+   trip to Yahoo.
+
+finnhubService.js (the actual Yahoo fetch logic) is untouched
+and is only imported by worker.js now.
 =====================================
 */
 
-const priceCache = new Map();
+const redis = require("../config/redisClient");
 
 /*
 =====================================
- CACHE CONFIGURATION
+ CACHE KEYS
 =====================================
 */
 
-/*
-Fresh prices are used for 60 seconds.
-*/
-
-const CACHE_TTL_MS = 60 * 1000;
-
-/*
-If Yahoo temporarily fails, we can
-continue displaying an older price for
-up to 10 minutes.
-*/
-
-const STALE_CACHE_TTL_MS = 10 * 60 * 1000;
+const PRICES_KEY = "live-prices";
+const UPDATED_AT_KEY = "live-prices:updated-at";
 
 /*
 =====================================
- REFRESH CONTROL
+ STALE THRESHOLD
 =====================================
+
+If the worker hasn't successfully refreshed in this long,
+flag the data as stale so the frontend can show a warning
+instead of presenting old prices as current.
 */
 
-/*
-Only one Yahoo refresh is allowed
-at a time.
-
-This is VERY important on Render
-because multiple browser requests
-could otherwise start multiple Yahoo
-requests simultaneously.
-*/
-
-let refreshPromise = null;
-
-/*
-=====================================
- HELPER
-=====================================
-*/
-
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const STALE_THRESHOLD_MS = 5 * 60 * 1000;
 
 /*
 =====================================
  GET LIVE PRICES
 =====================================
+
+Called two ways in this codebase:
+
+  getLivePrices(["RELIANCE", "TCS"])  -> prices for just those symbols
+  getLivePrices()                      -> prices for EVERY cached symbol
+                                           (used by aiAdvisorController.js)
+=====================================
 */
 
 exports.getLivePrices = async (symbols = []) => {
-  if (!symbols.length) {
-    return [];
-  }
-
-  /*
-    ---------------------------------
-    REMOVE DUPLICATES
-    ---------------------------------
-    */
-
-  const uniqueSymbols = [...new Set(symbols)];
-
-  const now = Date.now();
-
-  const results = [];
-
-  const symbolsNeedingRefresh = [];
-
-  /*
-    =================================
-    CHECK CACHE
-    =================================
-    */
-
-  for (const symbol of uniqueSymbols) {
-    const cached = priceCache.get(symbol);
+  try {
+    const [raw, updatedAt] = await Promise.all([
+      redis.get(PRICES_KEY),
+      redis.get(UPDATED_AT_KEY),
+    ]);
 
     /*
       ---------------------------------
-      FRESH CACHE
+      WORKER HASN'T WRITTEN ANYTHING YET
       ---------------------------------
+
+      Happens right after first deploy, before the worker's
+      first refresh cycle completes.
       */
 
-    if (cached && now - cached.fetchedAt < CACHE_TTL_MS) {
-      results.push({
-        symbol,
+    if (!raw) {
+      console.log("Prices: cache empty, worker may still be starting up");
 
-        price: cached.price,
-
-        change: cached.change,
-
-        marketState: cached.marketState,
-      });
-
-      continue;
-    }
-
-    /*
-      ---------------------------------
-      CACHE EXPIRED
-      ---------------------------------
-      */
-
-    symbolsNeedingRefresh.push(symbol);
-  }
-
-  /*
-    =================================
-    EVERYTHING WAS CACHED
-    =================================
-    */
-
-  if (symbolsNeedingRefresh.length === 0) {
-    console.log(`Prices: ${results.length} from cache`);
-
-    return results;
-  }
-
-  /*
-    =================================
-    RETURN STALE CACHE WHILE
-    BACKGROUND REFRESH RUNS
-    =================================
-    */
-
-  for (const symbol of symbolsNeedingRefresh) {
-    const cached = priceCache.get(symbol);
-
-    if (cached && now - cached.fetchedAt < STALE_CACHE_TTL_MS) {
-      results.push({
-        symbol,
-
-        price: cached.price,
-
-        change: cached.change,
-
-        marketState: cached.marketState,
-      });
-    } else {
-      /*
-        No cached price yet.
-        */
-
-      results.push({
-        symbol,
-
-        price: null,
-
-        change: null,
-
-        marketState: null,
-      });
-    }
-  }
-
-  /*
-    =================================
-    START BACKGROUND REFRESH
-    =================================
-    */
-
-  startBackgroundRefresh(symbolsNeedingRefresh);
-
-  console.log(
-    `Prices: ${
-      results.filter((item) => item.price != null).length
-    } available, ${
-      results.filter((item) => item.price == null).length
-    } waiting`,
-  );
-
-  return results;
-};
-
-/*
-=====================================
- BACKGROUND REFRESH
-=====================================
-*/
-
-function startBackgroundRefresh(symbols) {
-  /*
-  If a refresh is already running,
-  DO NOT start another one.
-  */
-
-  if (refreshPromise) {
-    return;
-  }
-
-  refreshPromise = refreshPrices(symbols)
-    .catch((error) => {
-      console.error("Yahoo background refresh failed:", error.message);
-    })
-    .finally(() => {
-      refreshPromise = null;
-    });
-}
-
-/*
-=====================================
- ACTUAL YAHOO REFRESH
-=====================================
-*/
-
-async function refreshPrices(symbols) {
-  if (!symbols.length) {
-    return;
-  }
-
-  /*
-  ---------------------------------
-  RE-CHECK CACHE
-  ---------------------------------
-
-  Another request might have refreshed
-  some symbols while this job was
-  waiting.
-  */
-
-  const now = Date.now();
-
-  const symbolsToFetch = symbols.filter((symbol) => {
-    const cached = priceCache.get(symbol);
-
-    return !cached || now - cached.fetchedAt >= CACHE_TTL_MS;
-  });
-
-  if (!symbolsToFetch.length) {
-    return;
-  }
-
-  /*
-  =================================
-  LIMIT BATCH SIZE
-  =================================
-
-  Keep this at 25 because your Stocks
-  page currently displays 25 stocks.
-
-  Yahoo has already successfully
-  returned 25 quotes from your Render
-  backend.
-  */
-
-  const BATCH_SIZE = 25;
-
-  for (let i = 0; i < symbolsToFetch.length; i += BATCH_SIZE) {
-    const batch = symbolsToFetch.slice(i, i + BATCH_SIZE);
-
-    console.log(`Fetching ${batch.length} live prices from Yahoo`);
-
-    /*
-    =================================
-    YAHOO REQUEST
-    =================================
-    */
-
-    const freshPrices = await getLivePricesBatch(batch);
-
-    /*
-    =================================
-    SAVE SUCCESSFUL PRICES
-    =================================
-    */
-
-    for (const item of freshPrices) {
-      if (item.price == null) {
-        continue;
+      if (!symbols.length) {
+        return [];
       }
 
-      priceCache.set(item.symbol, {
-        price: item.price,
-
-        change: item.change,
-
-        marketState: item.marketState,
-
-        fetchedAt: Date.now(),
-      });
+      return symbols.map((symbol) => ({
+        symbol,
+        price: null,
+        change: null,
+        marketState: null,
+        stale: true,
+      }));
     }
-
-    console.log(`Prices: ${freshPrices.length} available`);
 
     /*
-    =================================
-    SMALL DELAY BETWEEN BATCHES
-    =================================
-    */
+      ---------------------------------
+      PARSE CACHED BLOB
+      ---------------------------------
 
-    if (i + BATCH_SIZE < symbolsToFetch.length) {
-      await sleep(1500);
+      @upstash/redis auto-deserializes JSON values, but we
+      guard for the case where it comes back as a string.
+      */
+
+    const allPrices = typeof raw === "string" ? JSON.parse(raw) : raw;
+
+    const isStale =
+      !updatedAt || Date.now() - Number(updatedAt) > STALE_THRESHOLD_MS;
+
+    /*
+      ---------------------------------
+      NO SYMBOLS PASSED — RETURN EVERYTHING
+      ---------------------------------
+
+      Matches the existing behavior relied on by
+      aiAdvisorController.js.
+      */
+
+    if (!symbols.length) {
+      console.log(`Prices: ${allPrices.length} returned (full cache)`);
+
+      return allPrices.map((entry) => ({
+        ...entry,
+        stale: isStale,
+      }));
     }
+
+    /*
+      ---------------------------------
+      SPECIFIC SYMBOLS REQUESTED
+      ---------------------------------
+      */
+
+    const priceMap = new Map(allPrices.map((entry) => [entry.symbol, entry]));
+
+    const results = symbols.map((symbol) => {
+      const entry = priceMap.get(symbol);
+
+      if (!entry) {
+        return {
+          symbol,
+          price: null,
+          change: null,
+          marketState: null,
+          stale: true,
+        };
+      }
+
+      return {
+        ...entry,
+        stale: isStale,
+      };
+    });
+
+    console.log(
+      `Prices: ${results.filter((r) => r.price != null).length} available, ${
+        results.filter((r) => r.price == null).length
+      } missing${isStale ? " (cache stale)" : ""}`,
+    );
+
+    return results;
+  } catch (error) {
+    console.error("Failed to read live prices from Redis:", error.message);
+
+    /*
+      ---------------------------------
+      REDIS ITSELF IS DOWN
+      ---------------------------------
+
+      Fail soft — same shape the frontend already expects
+      when a price is unavailable.
+      */
+
+    if (!symbols.length) {
+      return [];
+    }
+
+    return symbols.map((symbol) => ({
+      symbol,
+      price: null,
+      change: null,
+      marketState: null,
+      stale: true,
+    }));
   }
-}
+};
 
 /*
 =====================================
  OPTIONAL CACHE CLEAR
 =====================================
 
-Useful if you ever want to manually
-clear prices without restarting
-Node.
+Useful for manually forcing a clean slate without
+restarting the worker.
 =====================================
 */
 
-exports.clearPriceCache = () => {
-  priceCache.clear();
+exports.clearPriceCache = async () => {
+  try {
+    await redis.del(PRICES_KEY);
+    await redis.del(UPDATED_AT_KEY);
 
-  console.log("Yahoo price cache cleared");
+    console.log("Redis price cache cleared");
+  } catch (error) {
+    console.error("Failed to clear Redis price cache:", error.message);
+  }
 };
